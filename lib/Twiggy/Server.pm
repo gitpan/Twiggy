@@ -60,7 +60,13 @@ sub _create_tcp_server {
         $port = $listen;
     }
 
-    return tcp_server $host, $port, $self->_accept_handler($app, $is_tcp), sub {
+    return tcp_server $host, $port, $self->_accept_handler($app, $is_tcp), 
+        $self->_accept_prepare_handler;
+}
+
+sub _accept_prepare_handler {
+    my $self = shift;
+    return sub {
         my ( $fh, $host, $port ) = @_;
         DEBUG && warn "Listening on $host:$port\n";
         $self->{prepared_host} = $host;
@@ -527,7 +533,11 @@ sub run {
     my $self = shift;
     $self->register_service(@_);
 
-    my $exit = $self->{exit_guard} = AE::cv;
+    my $exit = $self->{exit_guard} = AE::cv {
+        # Make sure that we are not listening on a socket anymore, while
+        # other events are being flushed
+        delete $self->{listen_guards};
+    };
     $exit->begin;
 
     my $w; $w = AE::signal QUIT => sub { $exit->end; undef $w };
