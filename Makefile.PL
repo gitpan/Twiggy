@@ -1,0 +1,17 @@
+use inc::Module::Install 0.91;
+name 'Twiggy';
+all_from 'lib/Twiggy.pm';
+readme_from 'lib/Twiggy.pm';
+requires 'Plack', 0.99;
+requires 'AnyEvent';
+requires 'HTTP::Status';
+requires 'Try::Tiny';
+requires 'HTTP::Parser::XS';
+recommends 'EV';
+install_script 'bin/twiggy';
+test_requires 'Test::More';
+use_test_base;
+auto_include_deps;
+author_tests('xt');
+auto_set_repository;
+WriteAll;
