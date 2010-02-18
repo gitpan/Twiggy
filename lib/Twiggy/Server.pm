@@ -16,7 +16,7 @@ use AnyEvent::Socket;
 use AnyEvent::Util qw(WSAEWOULDBLOCK);
 
 use HTTP::Status;
-use HTTP::Parser::XS qw(parse_http_request);
+use Plack::HTTPParser qw(parse_http_request);
 use Plack::Util;
 
 use constant DEBUG => $ENV{TWIGGY_DEBUG};
@@ -34,6 +34,7 @@ sub new {
     return bless {
         no_delay => 1,
         timeout => 300,
+        read_chunk_size => 4096,
         @args,
     }, $class;
 }
@@ -97,15 +98,8 @@ sub _accept_handler {
         }
 
         my $headers = "";
-        my $timeout_timer = AE::timer($self->{timeout}, 0, sub {
-            DEBUG && warn "$sock Timeout $peer_host:$peer_port\n";
-            close $sock;
-        }) if $self->{timeout};
-
         my $try_parse = sub {
             if ( $self->_try_read_headers($sock, $headers) ) {
-                undef $timeout_timer;
-
                 my $env = {
                     SERVER_PORT         => $self->{prepared_port},
                     SERVER_NAME         => $self->{prepared_host},
@@ -160,8 +154,6 @@ sub _accept_handler {
 sub _try_read_headers {
     my ( $self, $sock, undef ) = @_;
 
-    return unless defined fileno $sock;
-
     # FIXME add a timer to manage read timeouts
     local $/ = "\012";
 
@@ -191,14 +183,24 @@ sub _create_req_parsing_watcher {
     my ( $self, $sock, $try_parse, $app ) = @_;
 
     my $headers_io_watcher;
+
+    my $timeout_timer = AE::timer $self->{timeout}, 0, sub {
+        DEBUG && warn "$sock Timeout\n";
+        undef $headers_io_watcher;
+        undef $try_parse;
+        undef $sock;
+    } if $self->{timeout};
+
     $headers_io_watcher = AE::io $sock, 0, sub {
         try {
             if ( my $env = $try_parse->() ) {
                 undef $headers_io_watcher;
+                undef $timeout_timer;
                 $self->_run_app($app, $env, $sock);
             }
         } catch {
             undef $headers_io_watcher;
+            undef $timeout_timer;
             $self->_bad_request($sock);
         }
     };
@@ -206,6 +208,8 @@ sub _create_req_parsing_watcher {
 
 sub _bad_request {
     my ( $self, $sock ) = @_;
+
+    return unless defined $sock and defined fileno $sock;
 
     $self->_write_psgi_response(
         $sock,
@@ -223,32 +227,39 @@ sub _read_chunk {
     my ($self, $sock, $remaining, $cb) = @_;
 
     my $data = '';
+    my $read_chunk_size = $self->{read_chunk_size};
 
-    my $read_cb; $read_cb = sub {
-        my $rlen = read($sock, $data, $remaining, length($data));
+    my $try_read = sub {
+        READ_MORE: {
+            my $read_size = $remaining > $read_chunk_size ? $read_chunk_size : $remaining;
+            my $rlen = read($sock, $data, $read_size, length($data));
 
-        if (defined $rlen and $rlen > 0) {
-            $remaining -= $rlen;
+            if (defined $rlen and $rlen > 0) {
+                $remaining -= $rlen;
 
-            if ($remaining <= 0) {
-                undef $read_cb;
+                if ($remaining <= 0) {
+                    $cb->($data);
+                    return 1;
+                } else {
+                    redo READ_MORE;
+                }
+            } elsif (defined $rlen) {
                 $cb->($data);
+                return 1;
+            } elsif ($! and $! != EAGAIN && $! != EINTR && $! != WSAEWOULDBLOCK) {
+                die $!;
             }
-        } elsif (defined $rlen) {
-            undef $read_cb;
-            $cb->($data);
-        } elsif ($! and $! != EAGAIN && $! != EINTR && $! != WSAEWOULDBLOCK) {
-            die $!;
         }
+
+        return;
     };
 
-    $read_cb->();
-
-    if ($read_cb) {
+    unless ($try_read->()) {
         my $rw; $rw = AE::io($sock, 0, sub {
             try {
-                $read_cb->();
-                undef $rw unless $read_cb;
+                if ($try_read->()) {
+                    undef $rw;
+                }
             } catch {
                 undef $rw;
                 $self->_bad_request($sock);
@@ -440,7 +451,7 @@ sub _write_body {
     } elsif ( Plack::Util::is_real_fh($body) ) {
         # real handles use nonblocking IO
         # either AIO or using watchers, with sendfile or with copying IO
-        $self->_write_real_fh($sock, $body);
+        return $self->_write_real_fh($sock, $body);
     } elsif ( blessed($body) and $body->can("string_ref") ) {
         # optimize IO::String to not use its incredibly slow getline
         if ( my $pos = $body->tell ) {
@@ -470,7 +481,7 @@ sub _write_fh {
 
     no warnings 'recursion';
     $handle->on_drain(sub {
-        local $/ = \4096;
+        local $/ = \ $self->{read_chunk_size};
         if ( defined( my $buf = $body->getline ) ) {
             $handle->push_write($buf);
         } elsif ( $! ) {

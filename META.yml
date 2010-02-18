@@ -22,10 +22,10 @@ no_index:
     - xt
 recommends:
   EV: 0
+  HTTP::Parser::XS: 0
 requires:
   AnyEvent: 0
   Filter::Util::Call: 0
-  HTTP::Parser::XS: 0
   HTTP::Status: 0
   Plack: 0.99
   Try::Tiny: 0
@@ -33,4 +33,4 @@ requires:
 resources:
   license: http://dev.perl.org/licenses/
   repository: git://github.com/miyagawa/Twiggy.git
-version: 0.1002
+version: 0.1003
