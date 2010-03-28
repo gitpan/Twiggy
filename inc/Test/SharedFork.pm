@@ -3,11 +3,12 @@ package Test::SharedFork;
 use strict;
 use warnings;
 use base 'Test::Builder::Module';
-our $VERSION = '0.09';
+our $VERSION = '0.11';
 use Test::Builder 0.32; # 0.32 or later is needed
 use Test::SharedFork::Scalar;
 use Test::SharedFork::Array;
 use Test::SharedFork::Store;
+use 5.008000;
 
 my $STORE;
 
@@ -25,6 +26,7 @@ BEGIN {
     for my $name (qw/ok skip todo_skip current_test/) {
         my $orig = *{"Test::Builder::${name}"}{CODE};
         *{"Test::Builder::${name}"} = sub {
+            local $Test::Builder::Level += 4;
             my @args = @_;
             $STORE->lock_cb(sub {
                 $orig->(@args);
@@ -43,4 +45,4 @@ BEGIN {
 1;
 __END__
 
-#line 92
+#line 96
