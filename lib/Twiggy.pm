@@ -2,7 +2,7 @@ package Twiggy;
 use strict;
 use warnings;
 use 5.008_001;
-our $VERSION = '0.1007';
+our $VERSION = '0.1008';
 
 1;
 __END__
@@ -15,7 +15,7 @@ Twiggy - AnyEvent HTTP server for PSGI (like Thin)
 
   twiggy --listen :8080
 
-See C<twiggey -h> for more details.
+See C<twiggy -h> for more details.
 
   use Twiggy::Server;
 
