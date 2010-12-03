@@ -33,4 +33,4 @@ requires:
 resources:
   license: http://dev.perl.org/licenses/
   repository: git://github.com/miyagawa/Twiggy.git
-version: 0.1008
+version: 0.1009
