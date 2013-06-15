@@ -5,7 +5,6 @@ META.json
 META.yml
 Makefile.PL
 README
-bin/twiggy
 cpanfile
 dist.ini
 eg/chat-websocket/chat.psgi
@@ -26,6 +25,7 @@ lib/Plack/Handler/Twiggy.pm
 lib/Twiggy.pm
 lib/Twiggy/Server.pm
 lib/Twiggy/Server/SS.pm
+script/twiggy
 t/00_compile.t
 t/anyevent.t
 t/anyevent_extensions.t

@@ -33,7 +33,7 @@ resources:
   bugtracker: https://github.com/miyagawa/Twiggy/issues
   homepage: https://github.com/miyagawa/Twiggy
   repository: https://github.com/miyagawa/Twiggy.git
-version: 0.1022
+version: 0.1023
 x_contributors:
   - 'Adam Thomason <ad@mthomason.net>'
   - 'Chia-liang Kao <clkao@clkao.org>'
@@ -46,3 +46,4 @@ x_contributors:
   - 'Yuval Kogman <nothingmuch@woobling.org>'
   - 'hidekiy <hideki.yamamura@gmail.com>'
   - 'lestrrat <lestrrat+github@gmail.com>'
+  - 'moznion <moznion@gmail.com>'
