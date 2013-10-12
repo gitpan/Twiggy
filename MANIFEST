@@ -28,6 +28,7 @@ lib/Twiggy/Server/SS.pm
 script/twiggy
 t/00_compile.t
 t/anyevent.t
+t/anyevent_closed_connection.t
 t/anyevent_extensions.t
 t/anyevent_manyconnections.t
 t/anyevent_server_starter.t
